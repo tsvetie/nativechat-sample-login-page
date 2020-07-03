@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html class="h-100">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>OAuth Login Sample</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="/css/auth0-theme.min.css" />
+    <link rel="stylesheet" type="text/css" href="/css/main.css" />
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/monokai-sublime.min.css" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/solid.css"
+        integrity="sha384-r/k8YTFqmlOaqRkZuSiE9trsrDXkh07mRaoGBMoDcmA58OHILZPsk29i2BsFng1B" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/fontawesome.css"
+        integrity="sha384-4aon80D8rXCGx9ayDt85LbyUHeMWd3UiBaWliBlJ53yzm9hqN21A+o1pqoyK04h+" crossorigin="anonymous" />
+
+    <link rel="stylesheet" href="https://cdn.auth0.com/js/auth0-samples-theme/1.0/css/auth0-theme.min.css" />
+</head>
+
+<body class="h-100">
+    <div id="app" class="h-100 d-flex flex-column">
+        <div id="main-content" class="container mt-5 flex-grow-1">
+            <div id="content-home" class="page">
+                <div class="text-center hero">
+                    <h1 class="mb-4">Test Login Page</h1>
+                    <h2 id="login-button-container">Loading login button...</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth0-theme.min.js"></script>
+    <script src="https://cdn.auth0.com/js/auth0-spa-js/1.2/auth0-spa-js.production.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+    <script>
+        // The Auth0 client, initialized in configureClient()
+        let auth0 = null;
+
+        /**
+         * Starts the authentication flow
+         */
+        const login = async () => {
+            try {
+                const options = {
+                    redirect_uri: window.location.origin
+                };
+
+                const query = window.location.search;
+                if (query.includes("state=")) {
+                    // Retrieve the state query parameter passed by NativeChat
+                    const nativeChatState = query.split('=')[1];
+                    // Save the NativeChat state so that it is not lost upon OAuth redirect
+                    options.appState = { nativeChatState };
+                }
+
+                // Initiate OAuth 2.0 login (i.e. open up the external login page)
+                await auth0.loginWithRedirect(options);
+            } catch (err) {
+                console.log("Log in failed", err);
+            }
+        };
+
+        /**
+         * Initializes the Auth0 client
+         */
+        const configureClient = async () => {
+            const config = {
+                "domain": "sk-kinvey.eu.auth0.com",
+                "clientId": "JtCFQg6xM1yy5f6nCWqKOTHTx7fdrkKp"
+            };
+
+            auth0 = await createAuth0Client({
+                domain: config.domain,
+                client_id: config.clientId
+            });
+
+            // Create the login button
+            document.getElementById("login-button-container").innerHTML = '<button id="qsLoginBtn" onclick="login()" class="btn btn-primary btn-margin auth-invisible hidden">Log in</button>';
+        };
+
+        // Will run when page finishes loading
+        window.onload = async () => {
+            await configureClient();
+
+            const query = window.location.search;
+            const hasPerformedLogin = query.includes("code=") && query.includes("state=");
+
+            if (hasPerformedLogin) {
+                // Login was performed successfully
+                try {
+                    const result = await auth0.handleRedirectCallback();
+
+                    if (result.appState && result.appState.nativeChatState) {
+                        // Retrieve state passed earlier by NativeChat in order to send it back
+                        const { nativeChatState } = result.appState;
+                        const accessToken = await auth0.getTokenSilently();
+                        const url = `https://api.nativechat.com/v1/account-linking?state=${nativeChatState}`;
+                        const body = {
+                            accessToken
+                        };
+
+                        // Post a message to NativeChat server that authentication was completed successfully
+                        $.post(url, body)
+                            .done(function (data) {
+                                const { verificationToken, channel } = data;
+                                if (channel === 'darvin') {
+                                    // Post a message to NativeChat chat window that authentication was completed successfully
+                                    parent.postMessage({ type: 'authentication', token: verificationToken }, 'https://web-chat.nativechat.com');
+                                } else if (channel == 'facebook') {
+                                    // Redirect back to Facebook messenger and let it know that authentication was completed successfully
+                                    const url = `https://m.me/progressnativechat?ref=${data.verificationToken}`;
+                                    window.location.replace(url);
+                                }
+                            });
+                    }
+
+                    console.log("Logged in!");
+                } catch (err) {
+                    console.log("Error parsing redirect:", err);
+                }
+
+                window.history.replaceState({}, document.title, "/");
+            }
+
+        };
+
+
+
+    </script>
+</body>
+
+</html>
