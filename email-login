@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html class="h-100">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Email Login Sample</title>
+</head>
+
+<body class="h-100">
+    <div id="app" class="h-100 d-flex flex-column">
+        <div id="main-content" class="container mt-5 flex-grow-1">
+            <div id="content-home" class="page">
+                <div class="text-center hero">
+                    <h2 id="login-button-container">Loading login button...</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const login = async () => {
+          const query = window.location.search;
+           let nativeChatState = "";
+        
+           if (query.includes("state=")) {
+                // Retrieve the state query parameter passed by NativeChat
+                nativeChatState = query.split('=')[1];
+            }
+            
+            const url = `https://api.nativechat.com/v1/account-linking?state=${nativeChatState}`;
+            
+            const body = {
+                accessToken: "my_email@my.com"
+            };
+            
+            try {
+              // Post a message to NativeChat server that authentication was completed successfully
+              $.post(url, body)
+                  .done(function (data) {
+                      const { verificationToken, channel } = data;
+                      if (channel === 'darvin') {
+                          // Post a message to NativeChat chat window that authentication was completed successfully
+                          parent.postMessage({ type: 'authentication', token: verificationToken }, 'https://web-chat.nativechat.com');
+                      } else if (channel == 'facebook') {
+                          // Redirect back to Facebook messenger and let it know that authentication was completed successfully
+                          const url = `https://m.me/progressnativechat?ref=${data.verificationToken}`;
+                          window.location.replace(url);
+                      }
+                  });
+          
+              console.log("Logged in!");
+            } catch (err) {
+                console.log("Error:", err);
+            }
+        };
+        
+        // Will run when page finishes loading
+        window.onload = async () => {
+          // Create the login button
+          document.getElementById("login-button-container").innerHTML = '<button onclick="login()" class="btn btn-primary btn-margin">Log in</button>';
+        };
+    </script>
+</body>
+
+</html>
