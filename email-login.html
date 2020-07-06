@@ -29,7 +29,7 @@
                 nativeChatState = query.split('=')[1];
             }
             
-            const url = `https://api.nativechat.com/v1/account-linking?state=${nativeChatState}`;
+            const url = `http://localhost:3000/v1/account-linking?state=${nativeChatState}`;
             
             const body = {
                 accessToken: "my_email@my.com"
